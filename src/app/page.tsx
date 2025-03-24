@@ -1,7 +1,7 @@
 "use client";
-
-import type React from "react";
 import { useState, useEffect } from "react";
+import type React from "react";
+
 import {
   AreaChart,
   Area,
@@ -15,23 +15,18 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Papa from "papaparse";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import {
+  Upload,
   FileUp,
   BarChart3,
   LineChart,
   AlertCircle,
-  Loader2,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Define types
 interface HousingData {
@@ -130,13 +125,6 @@ interface CustomTooltipProps {
   label?: string;
 }
 
-interface ColorScheme {
-  adu: string;
-  nonAdu: string;
-  potentialAdu: string;
-  other: string;
-}
-
 // For file input
 interface FileInputEvent extends React.ChangeEvent<HTMLInputElement> {
   target: HTMLInputElement & {
@@ -144,7 +132,7 @@ interface FileInputEvent extends React.ChangeEvent<HTMLInputElement> {
   };
 }
 
-export default function HousingDashboard() {
+const HousingDashboard = () => {
   const [data, setData] = useState<HousingData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,17 +145,17 @@ export default function HousingDashboard() {
   const [activeTab, setActiveTab] = useState<string>("units");
 
   // Modern color scheme
-  const colors: ColorScheme = {
+  const colors = {
     adu: "#3b82f6", // Blue
     nonAdu: "#10b981", // Green
     potentialAdu: "#f97316", // Orange
-    other: "#f59e0b", // Amber
+    background: "#f8fafc", // Light gray background
   };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch CSV from public folder
+        // Fetch CSV from public folder - CSV should be placed in your public folder
         const response = await fetch("/housing_data.csv");
 
         if (!response.ok) {
@@ -431,18 +419,12 @@ export default function HousingDashboard() {
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900 dark:text-gray-100 mb-1">{`${label}`}</p>
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-bold text-gray-800 mb-1">{`${label}`}</p>
           {payload.map((entry, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              ></div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                {`${entry.name}: ${entry.value.toLocaleString()}`}
-              </p>
-            </div>
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {`${entry.name}: ${entry.value.toLocaleString()}`}
+            </p>
           ))}
         </div>
       );
@@ -452,255 +434,201 @@ export default function HousingDashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[500px]">
-        <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-        <p className="text-lg font-medium text-gray-600 dark:text-gray-400">
-          Loading housing data...
-        </p>
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Housing Data Dashboard</h1>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-3/4" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-[400px] w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-3/4" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-[400px] w-full" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-3xl mx-auto p-8">
+      <div className="p-8 max-w-7xl mx-auto">
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
 
-        <div className="text-center">
-          <p className="mb-4 text-gray-600 dark:text-gray-400">
-            Please upload a CSV file with housing data to continue
-          </p>
-          <Button className="relative">
-            <FileUp className="mr-2 h-4 w-4" />
-            Upload CSV
-            <input
-              type="file"
-              accept=".csv"
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              onChange={handleFileUpload}
-            />
-          </Button>
+        <div className="flex justify-center mt-8">
+          {/* <Button variant="default" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            <label className="cursor-pointer">
+              Upload CSV file
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </label>
+          </Button> */}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+    <div className="p-6 max-w-7xl mx-auto bg-background">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Housing Dashboard
+          <h1 className="text-3xl font-bold tracking-tight">
+            Housing Data Dashboard
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Analysis of housing permits and job values across jurisdictions
           </p>
         </div>
 
-        <Button className="relative">
-          <FileUp className="mr-2 h-4 w-4" />
-          Upload New Data
-          <input
-            type="file"
-            accept=".csv"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            onChange={handleFileUpload}
-          />
-        </Button>
+        {/* <Button variant="outline" className="flex items-center gap-2">
+          <FileUp className="h-4 w-4" />
+          <label className="cursor-pointer">
+            Upload Data
+            <input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+          </label>
+        </Button> */}
       </div>
 
-      <Tabs defaultValue="units" className="mb-8" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs
+        defaultValue="units"
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="mb-8"
+      >
+        <TabsList className="grid w-full md:w-[400px] grid-cols-2">
           <TabsTrigger value="units" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            <span>Units Analysis</span>
+            Units Analysis
           </TabsTrigger>
           <TabsTrigger value="values" className="flex items-center gap-2">
             <LineChart className="h-4 w-4" />
-            <span>Job Value Analysis</span>
+            Job Values
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="units" className="mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2">
+            {/* Chart 1: Units by Structure Type over time */}
+            <Card className="lg:col-span-2 shadow-md">
               <CardHeader>
                 <CardTitle>Units Permitted by Structure Type</CardTitle>
-                <CardDescription>
-                  Yearly breakdown of housing units by classification
-                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[500px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={chartData.unitsByYear}
-                      margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="colorAdu"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor={colors.adu}
-                            stopOpacity={0.8}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={colors.adu}
-                            stopOpacity={0.2}
-                          />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorNonAdu"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor={colors.nonAdu}
-                            stopOpacity={0.8}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={colors.nonAdu}
-                            stopOpacity={0.2}
-                          />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorPotential"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor={colors.potentialAdu}
-                            stopOpacity={0.8}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={colors.potentialAdu}
-                            stopOpacity={0.2}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="year"
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                      />
-                      <YAxis
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend
-                        wrapperStyle={{ paddingTop: 20 }}
-                        iconType="circle"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="POTENTIAL_ADU_CONVERSION"
-                        name="Potential ADU Conversion"
-                        stackId="1"
-                        fill="url(#colorPotential)"
-                        stroke={colors.potentialAdu}
-                        fillOpacity={1}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="ADU"
-                        name="ADU"
-                        stackId="1"
-                        fill="url(#colorAdu)"
-                        stroke={colors.adu}
-                        fillOpacity={1}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="NON_ADU"
-                        name="Non-ADU"
-                        stackId="1"
-                        fill="url(#colorNonAdu)"
-                        stroke={colors.nonAdu}
-                        fillOpacity={1}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart
+                    data={chartData.unitsByYear}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="year" tick={{ fill: "#64748b" }} />
+                    <YAxis tick={{ fill: "#64748b" }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="POTENTIAL_ADU_CONVERSION"
+                      name="Potential ADU Conversion"
+                      stackId="1"
+                      fill={colors.potentialAdu}
+                      stroke={colors.potentialAdu}
+                      fillOpacity={0.8}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="ADU"
+                      name="ADU"
+                      stackId="1"
+                      fill={colors.adu}
+                      stroke={colors.adu}
+                      fillOpacity={0.8}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="NON_ADU"
+                      name="Non-ADU"
+                      stackId="1"
+                      fill={colors.nonAdu}
+                      stroke={colors.nonAdu}
+                      fillOpacity={0.8}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Chart 2: Units by Jurisdiction */}
+            <Card className="shadow-md">
               <CardHeader>
                 <CardTitle>Units by Jurisdiction</CardTitle>
-                <CardDescription>
-                  Top jurisdictions by total housing units
-                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[500px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData.unitsByJurisdiction}
-                      layout="vertical"
-                      margin={{ top: 10, right: 30, left: 120, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        type="number"
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="county"
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                        width={110}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend
-                        wrapperStyle={{ paddingTop: 20 }}
-                        iconType="circle"
-                      />
-                      <Bar
-                        dataKey="ADU"
-                        name="ADU"
-                        stackId="a"
-                        fill={colors.adu}
-                        radius={[0, 0, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="NON_ADU"
-                        name="Non-ADU"
-                        stackId="a"
-                        fill={colors.nonAdu}
-                        radius={[0, 0, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="POTENTIAL_ADU_CONVERSION"
-                        name="Potential ADU Conversion"
-                        stackId="a"
-                        fill={colors.potentialAdu}
-                        radius={[0, 4, 4, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart
+                    data={chartData.unitsByJurisdiction}
+                    layout="vertical"
+                    margin={{ top: 10, right: 30, left: 100, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis type="number" tick={{ fill: "#64748b" }} />
+                    <YAxis
+                      type="category"
+                      dataKey="county"
+                      tick={{ fill: "#64748b" }}
+                      width={90}
+                      style={{ fontSize: "12px" }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Bar
+                      dataKey="ADU"
+                      name="ADU"
+                      stackId="a"
+                      fill={colors.adu}
+                      radius={[0, 0, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="NON_ADU"
+                      name="Non-ADU"
+                      stackId="a"
+                      fill={colors.nonAdu}
+                      radius={[0, 0, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="POTENTIAL_ADU_CONVERSION"
+                      name="Potential ADU Conversion"
+                      stackId="a"
+                      fill={colors.potentialAdu}
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
@@ -708,171 +636,95 @@ export default function HousingDashboard() {
 
         <TabsContent value="values" className="mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2">
+            {/* Chart 3: JOB_VALUE by Year and Type */}
+            <Card className="lg:col-span-2 shadow-md">
               <CardHeader>
-                <CardTitle>Average Job Value by Structure Type</CardTitle>
-                <CardDescription>
-                  Yearly average job value (K) by housing classification
-                </CardDescription>
+                <CardTitle>Average Job Value by Structure Type (K)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[500px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={chartData.jobValueByYear}
-                      margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="colorAduValue"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor={colors.adu}
-                            stopOpacity={0.8}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={colors.adu}
-                            stopOpacity={0.2}
-                          />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorNonAduValue"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor={colors.nonAdu}
-                            stopOpacity={0.8}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={colors.nonAdu}
-                            stopOpacity={0.2}
-                          />
-                        </linearGradient>
-                        <linearGradient
-                          id="colorPotentialValue"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor={colors.potentialAdu}
-                            stopOpacity={0.8}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={colors.potentialAdu}
-                            stopOpacity={0.2}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        dataKey="year"
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                      />
-                      <YAxis
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend
-                        wrapperStyle={{ paddingTop: 20 }}
-                        iconType="circle"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="POTENTIAL_ADU_CONVERSION"
-                        name="Potential ADU Conversion"
-                        stackId="1"
-                        fill="url(#colorPotentialValue)"
-                        stroke={colors.potentialAdu}
-                        fillOpacity={1}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="ADU"
-                        name="ADU"
-                        stackId="1"
-                        fill="url(#colorAduValue)"
-                        stroke={colors.adu}
-                        fillOpacity={1}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="NON_ADU"
-                        name="Non-ADU"
-                        stackId="1"
-                        fill="url(#colorNonAduValue)"
-                        stroke={colors.nonAdu}
-                        fillOpacity={1}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart
+                    data={chartData.jobValueByYear}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="year" tick={{ fill: "#64748b" }} />
+                    <YAxis tick={{ fill: "#64748b" }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="POTENTIAL_ADU_CONVERSION"
+                      name="Potential ADU Conversion"
+                      stackId="1"
+                      fill={colors.potentialAdu}
+                      stroke={colors.potentialAdu}
+                      fillOpacity={0.8}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="ADU"
+                      name="ADU"
+                      stackId="1"
+                      fill={colors.adu}
+                      stroke={colors.adu}
+                      fillOpacity={0.8}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="NON_ADU"
+                      name="Non-ADU"
+                      stackId="1"
+                      fill={colors.nonAdu}
+                      stroke={colors.nonAdu}
+                      fillOpacity={0.8}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Chart 4: JOB_VALUE by County */}
+            <Card className="shadow-md">
               <CardHeader>
-                <CardTitle>Average Job Value by County</CardTitle>
-                <CardDescription>
-                  Top counties by average job value (K)
-                </CardDescription>
+                <CardTitle>Average Job Value by County (K)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[500px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData.jobValueByCounty}
-                      layout="vertical"
-                      margin={{ top: 10, right: 30, left: 120, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        type="number"
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="county"
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                        width={110}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar
-                        dataKey="avgValue"
-                        name="Average Job Value (K)"
-                        fill={colors.nonAdu}
-                        radius={[0, 4, 4, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart
+                    data={chartData.jobValueByCounty}
+                    layout="vertical"
+                    margin={{ top: 10, right: 30, left: 100, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis type="number" tick={{ fill: "#64748b" }} />
+                    <YAxis
+                      type="category"
+                      dataKey="county"
+                      tick={{ fill: "#64748b" }}
+                      width={90}
+                      style={{ fontSize: "12px" }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar
+                      dataKey="avgValue"
+                      name="Average Job Value (K)"
+                      fill={colors.adu}
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
       </Tabs>
 
-      <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+      <div className="mt-8 text-center text-sm text-muted-foreground">
         <p>Data last updated: {new Date().toLocaleDateString()}</p>
       </div>
     </div>
   );
-}
+};
+
+export default HousingDashboard;

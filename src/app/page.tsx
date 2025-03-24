@@ -501,19 +501,6 @@ const HousingDashboard = () => {
             Analysis of housing permits and job values across jurisdictions
           </p>
         </div>
-
-        {/* <Button variant="outline" className="flex items-center gap-2">
-          <FileUp className="h-4 w-4" />
-          <label className="cursor-pointer">
-            Upload Data
-            <input
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-          </label>
-        </Button> */}
       </div>
 
       <Tabs
@@ -537,7 +524,7 @@ const HousingDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart 1: Units by Structure Type over time */}
             <Card className="lg:col-span-2 shadow-md">
-              <CardHeader>
+              <CardHeader className="px-4 font-bold">
                 <CardTitle>Units Permitted by Structure Type</CardTitle>
               </CardHeader>
               <CardContent>
@@ -585,8 +572,8 @@ const HousingDashboard = () => {
 
             {/* Chart 2: Units by Jurisdiction */}
             <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle>Units by Jurisdiction</CardTitle>
+              <CardHeader className=" px-4 font-bold">
+                <CardTitle className="">Units by Jurisdiction</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={400}>
@@ -638,7 +625,7 @@ const HousingDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart 3: JOB_VALUE by Year and Type */}
             <Card className="lg:col-span-2 shadow-md">
-              <CardHeader>
+              <CardHeader className="px-4 font-bold">
                 <CardTitle>Average Job Value by Structure Type (K)</CardTitle>
               </CardHeader>
               <CardContent>
@@ -686,7 +673,7 @@ const HousingDashboard = () => {
 
             {/* Chart 4: JOB_VALUE by County */}
             <Card className="shadow-md">
-              <CardHeader>
+              <CardHeader className="px-4 font-bold">
                 <CardTitle>Average Job Value by County (K)</CardTitle>
               </CardHeader>
               <CardContent>

@@ -17,7 +17,14 @@ import {
 import Papa from "papaparse";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, LineChart, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Upload,
+  FileUp,
+  BarChart3,
+  LineChart,
+  AlertCircle,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -427,25 +434,28 @@ const HousingDashboard = () => {
 
   if (loading) {
     return (
-      <div className="p-4 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Housing Data Dashboard</h1>
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Housing Data Dashboard</h1>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32" />
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
-            <CardHeader className="p-3">
-              <Skeleton className="h-6 w-3/4" />
+            <CardHeader>
+              <Skeleton className="h-8 w-3/4" />
             </CardHeader>
-            <CardContent className="p-3">
-              <Skeleton className="h-[350px] w-full" />
+            <CardContent>
+              <Skeleton className="h-[400px] w-full" />
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="p-3">
-              <Skeleton className="h-6 w-3/4" />
+            <CardHeader>
+              <Skeleton className="h-8 w-3/4" />
             </CardHeader>
-            <CardContent className="p-3">
-              <Skeleton className="h-[350px] w-full" />
+            <CardContent>
+              <Skeleton className="h-[400px] w-full" />
             </CardContent>
           </Card>
         </div>
@@ -455,8 +465,8 @@ const HousingDashboard = () => {
 
   if (error) {
     return (
-      <div className="p-4 max-w-7xl mx-auto">
-        <Alert variant="destructive" className="mb-4">
+      <div className="p-8 max-w-7xl mx-auto">
+        <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -466,13 +476,13 @@ const HousingDashboard = () => {
   }
 
   return (
-    <div className="p-4 max-w-7xl mx-auto bg-background">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4">
+    <div className="p-6 max-w-7xl mx-auto bg-background">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight">
             Housing Data Dashboard
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground mt-1">
             Analysis of housing permits and job values across jurisdictions
           </p>
         </div>
@@ -482,7 +492,7 @@ const HousingDashboard = () => {
         defaultValue="units"
         value={activeTab}
         onValueChange={setActiveTab}
-        className="mb-4"
+        className="mb-8"
       >
         <TabsList className="grid w-full md:w-[400px] grid-cols-2">
           <TabsTrigger value="units" className="flex items-center gap-2">
@@ -495,29 +505,26 @@ const HousingDashboard = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="units" className="mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="units" className="mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart 1: Units by Structure Type over time */}
-            <Card className="shadow-sm">
-              <CardHeader className="p-3">
-                <CardTitle className="text-base">
+            <Card className="lg:col-span-2 shadow-md">
+              <CardHeader className="text-center">
+                <CardTitle className="font-bold">
                   Units Permitted by Structure Type
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ResponsiveContainer width="100%" height={350}>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
                   <AreaChart
                     data={chartData.unitsByYear}
-                    margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="year"
-                      tick={{ fill: "#64748b", fontSize: 12 }}
-                    />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} />
+                    <XAxis dataKey="year" tick={{ fill: "#64748b" }} />
+                    <YAxis tick={{ fill: "#64748b" }} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    <Legend />
                     <Area
                       type="monotone"
                       dataKey="POTENTIAL_ADU_CONVERSION"
@@ -551,33 +558,30 @@ const HousingDashboard = () => {
             </Card>
 
             {/* Chart 2: Units by Jurisdiction */}
-            <Card className="shadow-sm">
-              <CardHeader className="p-3">
-                <CardTitle className="text-base">
+            <Card className="shadow-md">
+              <CardHeader className="text-center">
+                <CardTitle className="font-bold">
                   Units by Jurisdiction
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ResponsiveContainer width="100%" height={350}>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
                   <BarChart
                     data={chartData.unitsByJurisdiction}
                     layout="vertical"
-                    margin={{ top: 5, right: 5, left: 80, bottom: 5 }}
+                    margin={{ top: 10, right: 30, left: 100, bottom: 20 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis
-                      type="number"
-                      tick={{ fill: "#64748b", fontSize: 12 }}
-                    />
+                    <XAxis type="number" tick={{ fill: "#64748b" }} />
                     <YAxis
                       type="category"
                       dataKey="county"
                       tick={{ fill: "#64748b" }}
-                      width={75}
-                      style={{ fontSize: "11px" }}
+                      width={90}
+                      style={{ fontSize: "12px" }}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    <Legend />
                     <Bar
                       dataKey="ADU"
                       name="ADU"
@@ -606,29 +610,26 @@ const HousingDashboard = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="values" className="mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="values" className="mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart 3: JOB_VALUE by Year and Type */}
-            <Card className="shadow-sm">
-              <CardHeader className="p-3">
-                <CardTitle className="text-base">
+            <Card className="lg:col-span-2 shadow-md">
+              <CardHeader className="flex justify-center">
+                <CardTitle className="text-center font-bold">
                   Average Job Value by Structure Type (K)
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ResponsiveContainer width="100%" height={350}>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
                   <AreaChart
                     data={chartData.jobValueByYear}
-                    margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="year"
-                      tick={{ fill: "#64748b", fontSize: 12 }}
-                    />
-                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} />
+                    <XAxis dataKey="year" tick={{ fill: "#64748b" }} />
+                    <YAxis tick={{ fill: "#64748b" }} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    <Legend />
                     <Area
                       type="monotone"
                       dataKey="POTENTIAL_ADU_CONVERSION"
@@ -662,30 +663,27 @@ const HousingDashboard = () => {
             </Card>
 
             {/* Chart 4: JOB_VALUE by County */}
-            <Card className="shadow-sm">
-              <CardHeader className="p-3">
-                <CardTitle className="text-base">
+            <Card className="shadow-md">
+              <CardHeader className="text-center">
+                <CardTitle className="font-bold">
                   Average Job Value by County (K)
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <ResponsiveContainer width="100%" height={350}>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
                   <BarChart
                     data={chartData.jobValueByCounty}
                     layout="vertical"
-                    margin={{ top: 5, right: 5, left: 80, bottom: 5 }}
+                    margin={{ top: 10, right: 30, left: 100, bottom: 20 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis
-                      type="number"
-                      tick={{ fill: "#64748b", fontSize: 12 }}
-                    />
+                    <XAxis type="number" tick={{ fill: "#64748b" }} />
                     <YAxis
                       type="category"
                       dataKey="county"
                       tick={{ fill: "#64748b" }}
-                      width={75}
-                      style={{ fontSize: "11px" }}
+                      width={90}
+                      style={{ fontSize: "12px" }}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar
@@ -702,7 +700,7 @@ const HousingDashboard = () => {
         </TabsContent>
       </Tabs>
 
-      <div className="mt-4 text-center text-xs text-muted-foreground">
+      <div className="mt-8 text-center text-sm text-muted-foreground">
         <p>Data last updated: {new Date().toLocaleDateString()}</p>
       </div>
     </div>

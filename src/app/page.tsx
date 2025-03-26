@@ -17,14 +17,8 @@ import {
 import Papa from "papaparse";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import {
-  Upload,
-  FileUp,
-  BarChart3,
-  LineChart,
-  AlertCircle,
-} from "lucide-react";
+
+import { BarChart3, LineChart, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -435,7 +429,7 @@ const HousingDashboard = () => {
   if (loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 ">
           <h1 className="text-3xl font-bold">Housing Data Dashboard</h1>
           <div className="flex gap-2">
             <Skeleton className="h-10 w-32" />
@@ -494,18 +488,35 @@ const HousingDashboard = () => {
         onValueChange={setActiveTab}
         className="mb-8"
       >
-        <TabsList className="grid w-full md:w-[400px] grid-cols-2">
-          <TabsTrigger value="units" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+          <TabsTrigger
+            value="units"
+            className={`flex items-center gap-2 transition-all duration-200 ${
+              activeTab === "units"
+                ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                : "text-muted-foreground hover:text-primary/80"
+            }`}
+          >
             <BarChart3 className="h-4 w-4" />
-            Units Analysis
+            <span>Units Analysis</span>
           </TabsTrigger>
-          <TabsTrigger value="values" className="flex items-center gap-2">
+          <TabsTrigger
+            value="values"
+            className={`flex items-center gap-2 transition-all duration-200 ${
+              activeTab === "values"
+                ? "bg-white dark:bg-gray-700 text-primary shadow-sm"
+                : "text-muted-foreground hover:text-primary/80"
+            }`}
+          >
             <LineChart className="h-4 w-4" />
-            Job Values
+            <span>Job Value Analysis</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="units" className="mt-6">
+        <TabsContent
+          value="units"
+          className="mt-6 transition-opacity duration-300 ease-in-out"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart 1: Units by Structure Type over time */}
             <Card className="lg:col-span-2 shadow-md">
@@ -610,7 +621,10 @@ const HousingDashboard = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="values" className="mt-6">
+        <TabsContent
+          value="values"
+          className="mt-6 transition-opacity duration-300 ease-in-out"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart 3: JOB_VALUE by Year and Type */}
             <Card className="lg:col-span-2 shadow-md">

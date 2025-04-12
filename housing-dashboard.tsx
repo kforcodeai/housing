@@ -74,7 +74,7 @@ interface ChartDataState {
   unitsByYear: UnitsByYearData[]
   unitsByJurisdiction: UnitsByJurisdictionData[]
   jobValueByYear: JobValueData[]
-  jobValueByCounty: JobValueByCountyData[]
+  jobValueByCounty: JobValueByCountyData[] // This will now be specifically for ADU only
 }
 
 interface ValueAggregate {
@@ -246,19 +246,19 @@ export default function HousingDashboard() {
     // 3. JOB_VALUE by year for each type
     const jobValueByYear = processJobValueByYear(data)
 
-    // 4. JOB_VALUE by county
-    const jobValueByCounty = processJobValueByCounty(data)
+    // 4. JOB_VALUE (ADU only) by county
+    const jobValueByCounty = processJobValueByCountyADU(data)
 
     setChartData({
       unitsByYear,
       unitsByJurisdiction,
       jobValueByYear,
-      jobValueByCounty,
+      jobValueByCounty, // now ADU only
     })
   }
 
   const processUnitsByYear = (data: HousingData[]): UnitsByYearData[] => {
-    const unitsByYearAndType: UnitsByYearAndType = {}
+    const unitsByYearAndType: { [year: string]: { [key: string]: number } } = {}
 
     data.forEach((row) => {
       if (row.YEAR && row.Classification) {
@@ -295,7 +295,7 @@ export default function HousingDashboard() {
   }
 
   const processUnitsByJurisdiction = (data: HousingData[]): UnitsByJurisdictionData[] => {
-    const unitsByJurisdictionAndType: UnitsByJurisdictionAndType = {}
+    const unitsByJurisdictionAndType: { [county: string]: { [key: string]: number } } = {}
 
     data.forEach((row) => {
       if (row.COUNTY && row.Classification) {
@@ -367,11 +367,13 @@ export default function HousingDashboard() {
       })
   }
 
-  const processJobValueByCounty = (data: HousingData[]): JobValueByCountyData[] => {
+  // Filter only ADU records and compute average job value by county
+  const processJobValueByCountyADU = (data: HousingData[]): JobValueByCountyData[] => {
     const jobValueByCounty: JobValueByCounty = {}
 
     data.forEach((row) => {
-      if (row.COUNTY && row.JOB_VALUE) {
+      if (row.COUNTY && row.JOB_VALUE && row.Classification === "ADU") {
+        // Only count ADU
         if (!jobValueByCounty[row.COUNTY]) {
           jobValueByCounty[row.COUNTY] = { sum: 0, count: 0 }
         }
@@ -473,217 +475,233 @@ export default function HousingDashboard() {
         </Button>
       </div>
 
-      <Tabs defaultValue="units" className="mb-8" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="units" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            <span>Units Analysis</span>
-          </TabsTrigger>
-          <TabsTrigger value="values" className="flex items-center gap-2">
-            <LineChart className="h-4 w-4" />
-            <span>Job Value Analysis</span>
-          </TabsTrigger>
-        </TabsList>
+      {/* Tabs container */}
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden">
+        <Tabs defaultValue="units" onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <TabsTrigger value="units" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>Units Analysis</span>
+            </TabsTrigger>
+            <TabsTrigger value="values" className="flex items-center gap-2">
+              <LineChart className="h-4 w-4" />
+              <span>Job Value Analysis</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="units" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Units Permitted by Structure Type</CardTitle>
-                <CardDescription>Yearly breakdown of housing units by classification</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[500px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData.unitsByYear} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
-                      <defs>
-                        <linearGradient id="colorAdu" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={colors.adu} stopOpacity={0.8} />
-                          <stop offset="95%" stopColor={colors.adu} stopOpacity={0.2} />
-                        </linearGradient>
-                        <linearGradient id="colorNonAdu" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={colors.nonAdu} stopOpacity={0.8} />
-                          <stop offset="95%" stopColor={colors.nonAdu} stopOpacity={0.2} />
-                        </linearGradient>
-                        <linearGradient id="colorPotential" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={colors.potentialAdu} stopOpacity={0.8} />
-                          <stop offset="95%" stopColor={colors.potentialAdu} stopOpacity={0.2} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="year" tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
-                      <YAxis tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ paddingTop: 20 }} iconType="circle" />
-                      <Area
-                        type="monotone"
-                        dataKey="POTENTIAL_ADU_CONVERSION"
-                        name="Potential ADU Conversion"
-                        stackId="1"
-                        fill="url(#colorPotential)"
-                        stroke={colors.potentialAdu}
-                        fillOpacity={1}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="ADU"
-                        name="ADU"
-                        stackId="1"
-                        fill="url(#colorAdu)"
-                        stroke={colors.adu}
-                        fillOpacity={1}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="NON_ADU"
-                        name="Non-ADU"
-                        stackId="1"
-                        fill="url(#colorNonAdu)"
-                        stroke={colors.nonAdu}
-                        fillOpacity={1}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="units" className="bg-white dark:bg-gray-900 p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Units Permitted by Structure Type</CardTitle>
+                  <CardDescription>Yearly breakdown of housing units by classification</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[500px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData.unitsByYear} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                        <defs>
+                          <linearGradient id="colorAdu" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={colors.adu} stopOpacity={0.8} />
+                            <stop offset="95%" stopColor={colors.adu} stopOpacity={0.2} />
+                          </linearGradient>
+                          <linearGradient id="colorNonAdu" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={colors.nonAdu} stopOpacity={0.8} />
+                            <stop offset="95%" stopColor={colors.nonAdu} stopOpacity={0.2} />
+                          </linearGradient>
+                          <linearGradient id="colorPotential" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={colors.potentialAdu} stopOpacity={0.8} />
+                            <stop offset="95%" stopColor={colors.potentialAdu} stopOpacity={0.2} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="year" tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
+                        <YAxis tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ paddingTop: 20 }} iconType="circle" />
+                        <Area
+                          type="monotone"
+                          dataKey="POTENTIAL_ADU_CONVERSION"
+                          name="Potential ADU Conversion"
+                          stackId="1"
+                          fill="url(#colorPotential)"
+                          stroke={colors.potentialAdu}
+                          fillOpacity={1}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="ADU"
+                          name="ADU"
+                          stackId="1"
+                          fill="url(#colorAdu)"
+                          stroke={colors.adu}
+                          fillOpacity={1}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="NON_ADU"
+                          name="Non-ADU"
+                          stackId="1"
+                          fill="url(#colorNonAdu)"
+                          stroke={colors.nonAdu}
+                          fillOpacity={1}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Units by Jurisdiction</CardTitle>
-                <CardDescription>Top jurisdictions by total housing units</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[500px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData.unitsByJurisdiction}
-                      layout="vertical"
-                      margin={{ top: 10, right: 30, left: 120, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis type="number" tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
-                      <YAxis
-                        type="category"
-                        dataKey="county"
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                        width={110}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ paddingTop: 20 }} iconType="circle" />
-                      <Bar dataKey="ADU" name="ADU" stackId="a" fill={colors.adu} radius={[0, 0, 0, 0]} />
-                      <Bar dataKey="NON_ADU" name="Non-ADU" stackId="a" fill={colors.nonAdu} radius={[0, 0, 0, 0]} />
-                      <Bar
-                        dataKey="POTENTIAL_ADU_CONVERSION"
-                        name="Potential ADU Conversion"
-                        stackId="a"
-                        fill={colors.potentialAdu}
-                        radius={[0, 4, 4, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Units by Jurisdiction</CardTitle>
+                  <CardDescription>Top jurisdictions by total housing units</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[500px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartData.unitsByJurisdiction}
+                        layout="vertical"
+                        margin={{ top: 10, right: 30, left: 120, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis type="number" tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
+                        <YAxis
+                          type="category"
+                          dataKey="county"
+                          tick={{ fill: "#6b7280" }}
+                          axisLine={{ stroke: "#d1d5db" }}
+                          width={110}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ paddingTop: 20 }} iconType="circle" />
+                        <Bar dataKey="ADU" name="ADU" stackId="a" fill={colors.adu} radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="NON_ADU" name="Non-ADU" stackId="a" fill={colors.nonAdu} radius={[0, 0, 0, 0]} />
+                        <Bar
+                          dataKey="POTENTIAL_ADU_CONVERSION"
+                          name="Potential ADU Conversion"
+                          stackId="a"
+                          fill={colors.potentialAdu}
+                          radius={[0, 4, 4, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
-        <TabsContent value="values" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Average Job Value by Structure Type</CardTitle>
-                <CardDescription>Yearly average job value (K) by housing classification</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[500px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData.jobValueByYear} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
-                      <defs>
-                        <linearGradient id="colorAduValue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={colors.adu} stopOpacity={0.8} />
-                          <stop offset="95%" stopColor={colors.adu} stopOpacity={0.2} />
-                        </linearGradient>
-                        <linearGradient id="colorNonAduValue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={colors.nonAdu} stopOpacity={0.8} />
-                          <stop offset="95%" stopColor={colors.nonAdu} stopOpacity={0.2} />
-                        </linearGradient>
-                        <linearGradient id="colorPotentialValue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={colors.potentialAdu} stopOpacity={0.8} />
-                          <stop offset="95%" stopColor={colors.potentialAdu} stopOpacity={0.2} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="year" tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
-                      <YAxis tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ paddingTop: 20 }} iconType="circle" />
-                      <Area
-                        type="monotone"
-                        dataKey="POTENTIAL_ADU_CONVERSION"
-                        name="Potential ADU Conversion"
-                        stackId="1"
-                        fill="url(#colorPotentialValue)"
-                        stroke={colors.potentialAdu}
-                        fillOpacity={1}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="ADU"
-                        name="ADU"
-                        stackId="1"
-                        fill="url(#colorAduValue)"
-                        stroke={colors.adu}
-                        fillOpacity={1}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="NON_ADU"
-                        name="Non-ADU"
-                        stackId="1"
-                        fill="url(#colorNonAduValue)"
-                        stroke={colors.nonAdu}
-                        fillOpacity={1}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="values" className="bg-white dark:bg-gray-900 p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Average Job Value by Structure Type</CardTitle>
+                  <CardDescription>Yearly average job value (K) by housing classification</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[500px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData.jobValueByYear} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                        <defs>
+                          <linearGradient id="colorAduValue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={colors.adu} stopOpacity={0.8} />
+                            <stop offset="95%" stopColor={colors.adu} stopOpacity={0.2} />
+                          </linearGradient>
+                          <linearGradient id="colorNonAduValue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={colors.nonAdu} stopOpacity={0.8} />
+                            <stop offset="95%" stopColor={colors.nonAdu} stopOpacity={0.2} />
+                          </linearGradient>
+                          <linearGradient id="colorPotentialValue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={colors.potentialAdu} stopOpacity={0.8} />
+                            <stop offset="95%" stopColor={colors.potentialAdu} stopOpacity={0.2} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="year" tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
+                        <YAxis tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ paddingTop: 20 }} iconType="circle" />
+                        <Area
+                          type="monotone"
+                          dataKey="POTENTIAL_ADU_CONVERSION"
+                          name="Potential ADU Conversion"
+                          stackId="1"
+                          fill="url(#colorPotentialValue)"
+                          stroke={colors.potentialAdu}
+                          fillOpacity={1}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="ADU"
+                          name="ADU"
+                          stackId="1"
+                          fill="url(#colorAduValue)"
+                          stroke={colors.adu}
+                          fillOpacity={1}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="NON_ADU"
+                          name="Non-ADU"
+                          stackId="1"
+                          fill="url(#colorNonAduValue)"
+                          stroke={colors.nonAdu}
+                          fillOpacity={1}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Average Job Value by County</CardTitle>
-                <CardDescription>Top counties by average job value (K)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[500px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={chartData.jobValueByCounty}
-                      layout="vertical"
-                      margin={{ top: 10, right: 30, left: 120, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis type="number" tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
-                      <YAxis
-                        type="category"
-                        dataKey="county"
-                        tick={{ fill: "#6b7280" }}
-                        axisLine={{ stroke: "#d1d5db" }}
-                        width={110}
-                      />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="avgValue" name="Average Job Value (K)" fill={colors.nonAdu} radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+              {/* 
+                NOTE the title change here. 
+                We now show "Average Job Value for ADU by County (K)" 
+                since we only computed ADU in processJobValueByCountyADU.
+              */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Average Job Value for ADU by County (K)</CardTitle>
+                  <CardDescription>Top counties by average job value for ADUs</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[500px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartData.jobValueByCounty}
+                        layout="vertical"
+                        margin={{ top: 10, right: 30, left: 120, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis type="number" tick={{ fill: "#6b7280" }} axisLine={{ stroke: "#d1d5db" }} />
+                        <YAxis
+                          type="category"
+                          dataKey="county"
+                          tick={{ fill: "#6b7280" }}
+                          axisLine={{ stroke: "#d1d5db" }}
+                          width={110}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        {/* 
+                          Also change the bar label to mention ADU 
+                        */}
+                        <Bar
+                          dataKey="avgValue"
+                          name="Average Job Value for ADU (K)"
+                          fill={colors.nonAdu}
+                          radius={[0, 4, 4, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
         <p>Data last updated: {new Date().toLocaleDateString()}</p>
@@ -691,4 +709,3 @@ export default function HousingDashboard() {
     </div>
   )
 }
-

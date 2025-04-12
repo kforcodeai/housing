@@ -18,7 +18,7 @@ import Papa from "papaparse";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { BarChart3, LineChart, AlertCircle } from "lucide-react";
+import { BarChart3, LineChart, AlertCircle, Home } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -70,11 +70,19 @@ interface JobValueByCountyData {
   avgValueLabel: string;
 }
 
+interface AverageAduJobValueByYearData {
+  year: string;
+  avgAduValue: number;
+  count: number;
+  valueLabel: string;
+}
+
 interface ChartDataState {
   unitsByYear: UnitsByYearData[];
   unitsByJurisdiction: UnitsByJurisdictionData[];
   jobValueByYear: JobValueData[];
   jobValueByCounty: JobValueByCountyData[];
+  averageAduJobValueByYear: AverageAduJobValueByYearData[];
 }
 
 interface ValueAggregate {
@@ -135,6 +143,7 @@ const HousingDashboard = () => {
     unitsByJurisdiction: [],
     jobValueByYear: [],
     jobValueByCounty: [],
+    averageAduJobValueByYear: [],
   });
   const [activeTab, setActiveTab] = useState<string>("units");
 
@@ -250,11 +259,15 @@ const HousingDashboard = () => {
     // 4. JOB_VALUE by county
     const jobValueByCounty = processJobValueByCounty(data);
 
+    // 5. Average ADU Job Value by Year
+    const averageAduJobValueByYear = processAverageAduJobValueByYear(data);
+
     setChartData({
       unitsByYear,
       unitsByJurisdiction,
       jobValueByYear,
       jobValueByCounty,
+      averageAduJobValueByYear,
     });
   };
 
@@ -410,15 +423,67 @@ const HousingDashboard = () => {
       .slice(0, 15);
   };
 
+  // New function to process average ADU job values by year
+  const processAverageAduJobValueByYear = (
+    data: HousingData[]
+  ): AverageAduJobValueByYearData[] => {
+    // Create an object to hold the sum and count of ADU job values by year
+    const aduJobValuesByYear: Record<string, ValueAggregate> = {};
+
+    // Process each data row
+    data.forEach((row) => {
+      if (row.YEAR && row.Classification === "ADU" && row.JOB_VALUE) {
+        const year = row.YEAR.toString();
+        if (!aduJobValuesByYear[year]) {
+          aduJobValuesByYear[year] = { sum: 0, count: 0 };
+        }
+
+        aduJobValuesByYear[year].sum += row.JOB_VALUE;
+        aduJobValuesByYear[year].count += 1;
+      }
+    });
+
+    // Convert the aggregated data into the desired format
+    return Object.keys(aduJobValuesByYear)
+      .sort()
+      .map((year) => {
+        const avgValue =
+          aduJobValuesByYear[year].count > 0
+            ? Math.round(
+                aduJobValuesByYear[year].sum /
+                  aduJobValuesByYear[year].count /
+                  1000
+              )
+            : 0; // Convert to K
+
+        return {
+          year,
+          avgAduValue: avgValue,
+          count: aduJobValuesByYear[year].count,
+          valueLabel: avgValue > 0 ? `${avgValue}K` : "",
+        };
+      });
+  };
+
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+        <div
+          className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg"
+          role="tooltip"
+          aria-live="polite"
+        >
           <p className="font-bold text-gray-800 mb-1">{`${label}`}</p>
           {payload.map((entry, index) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {`${entry.name}: ${entry.value.toLocaleString()}`}
-            </p>
+            <div key={index} className="flex items-center gap-2 text-sm">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              ></div>
+              <p style={{ color: entry.color }}>{`${
+                entry.name
+              }: ${entry.value.toLocaleString()}`}</p>
+            </div>
           ))}
         </div>
       );
@@ -625,9 +690,9 @@ const HousingDashboard = () => {
           value="values"
           className="mt-6 transition-opacity duration-300 ease-in-out"
         >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Chart 3: JOB_VALUE by Year and Type */}
-            <Card className="lg:col-span-2 shadow-md">
+            <Card className="shadow-md">
               <CardHeader className="flex justify-center">
                 <CardTitle className="text-center font-bold">
                   Average Job Value by Structure Type (K)
@@ -680,7 +745,7 @@ const HousingDashboard = () => {
             <Card className="shadow-md">
               <CardHeader className="text-center">
                 <CardTitle className="font-bold">
-                  Average Job Value by County (K)
+                  Average Job Value by County
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -711,6 +776,55 @@ const HousingDashboard = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* NEW CHART: Average ADU Job Value by Year */}
+          <Card className="shadow-md">
+            <CardHeader className="text-center">
+              <CardTitle className="font-bold flex items-center justify-center gap-2">
+                <Home className="h-5 w-5" />
+                Average ADU Job Value by Year
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart
+                  data={chartData.averageAduJobValueByYear}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="year" tick={{ fill: "#64748b" }} />
+                  <YAxis tick={{ fill: "#64748b" }} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                            <p className="font-bold text-gray-800 mb-1">{`Year: ${label}`}</p>
+                            <p
+                              className="text-sm"
+                              style={{ color: colors.adu }}
+                            >
+                              {`Average ADU Job Value: $${data.avgAduValue.toLocaleString()}K`}
+                            </p>
+                            <p className="text-sm text-gray-600">{`Number of ADUs: ${data.count}`}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="avgAduValue"
+                    name="Average ADU Job Value (K)"
+                    fill={colors.adu}
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

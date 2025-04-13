@@ -11,11 +11,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Line,
   ReferenceLine,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import Papa from "papaparse";
 import {
@@ -47,7 +43,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
 interface HousingData {
@@ -91,12 +86,28 @@ interface AverageAduJobValueByYearData {
   count: number;
 }
 
+interface AduJobValuePercentageByYearData {
+  year: string;
+  aduJobValuePercentage: number;
+  aduValue: number;
+  totalValue: number;
+}
+
+interface AvgJobValueByStructureTypeAndYearData {
+  year: string;
+  ADU: number;
+  NON_ADU: number;
+  POTENTIAL_ADU_CONVERSION: number;
+}
+
 interface ChartDataState {
   unitsByYear: UnitsByYearData[];
-  unitsByJurisdiction: UnitsByJurisdictionData[];
-  jobValueByCounty: JobValueByCountyData[];
-  averageAduJobValueByYear: AverageAduJobValueByYearData[];
   aduPercentageByYear: AduPercentageByYearData[];
+  unitsByJurisdiction: UnitsByJurisdictionData[];
+  aduJobValuePercentageByYear: AduJobValuePercentageByYearData[];
+  avgJobValueByStructureTypeAndYear: AvgJobValueByStructureTypeAndYearData[];
+  jobValueByCounty: JobValueByCountyData[];
+  averageAduJobValueByYear: AverageAduJobValueByYearData[]; // still used in certain cards if needed
 }
 
 interface ValueAggregate {
@@ -104,7 +115,7 @@ interface ValueAggregate {
   count: number;
 }
 
-// Sample data in case the CSV is not available
+// Sample data in case CSV not available
 const generateSampleData = (): HousingData[] => {
   const counties = [
     "Santa Clara",
@@ -121,9 +132,8 @@ const generateSampleData = (): HousingData[] => {
   return Array.from({ length: 300 }, (_, i) => ({
     YEAR: years[Math.floor(Math.random() * years.length)],
     COUNTY: counties[Math.floor(Math.random() * counties.length)],
-    Classification: classifications[
-      Math.floor(Math.random() * classifications.length)
-    ] as any,
+    Classification:
+      classifications[Math.floor(Math.random() * classifications.length)] as any,
     JOB_VALUE: Math.floor(Math.random() * 300000) + 100000,
     ID: i + 1,
   }));
@@ -150,10 +160,12 @@ const HousingDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [chartData, setChartData] = useState<ChartDataState>({
     unitsByYear: [],
+    aduPercentageByYear: [],
     unitsByJurisdiction: [],
+    aduJobValuePercentageByYear: [],
+    avgJobValueByStructureTypeAndYear: [],
     jobValueByCounty: [],
     averageAduJobValueByYear: [],
-    aduPercentageByYear: [],
   });
   const [activeTab, setActiveTab] = useState<string>("overview");
   const { toast } = useToast();
@@ -185,9 +197,8 @@ const HousingDashboard = () => {
 
         setData(parsedData.data);
         processData(parsedData.data);
-      } catch (error) {
-        console.error("Error loading data:", error);
-        // Fallback to sample data in case of error
+      } catch (err) {
+        console.error("Error loading data:", err);
         const sampleData = generateSampleData();
         setData(sampleData);
         processData(sampleData);
@@ -200,53 +211,59 @@ const HousingDashboard = () => {
     fetchData();
   }, []);
 
-  const processData = (data: HousingData[]) => {
-    setChartData({
-      unitsByYear: processUnitsByYear(data),
-      unitsByJurisdiction: processUnitsByJurisdiction(data),
-      jobValueByCounty: processJobValueByCounty(data),
-      averageAduJobValueByYear: processAverageAduJobValueByYear(data),
-      aduPercentageByYear: processAduPercentageByYear(data),
-    });
-  };
+  /* --------------------------
+   * PROCESSING FUNCTIONS
+   * -------------------------- */
 
+  // 1) Units by year, for wave-like chart
   const processUnitsByYear = (data: HousingData[]): UnitsByYearData[] => {
     const unitsByYear = data.reduce((acc, row) => {
       const year = row.YEAR.toString();
-      if (!acc[year])
-        acc[year] = { year, ADU: 0, NON_ADU: 0, POTENTIAL_ADU_CONVERSION: 0 };
+      if (!acc[year]) {
+        acc[year] = {
+          year,
+          ADU: 0,
+          NON_ADU: 0,
+          POTENTIAL_ADU_CONVERSION: 0,
+        };
+      }
       acc[year][row.Classification]++;
       return acc;
     }, {} as Record<string, UnitsByYearData>);
 
-    return Object.entries(unitsByYear)
-      .map(([year, counts]) => ({ ...counts }))
-      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
-  };
-
-  const processAduPercentageByYear = (
-    data: HousingData[]
-  ): AduPercentageByYearData[] => {
-    const yearlyData = processUnitsByYear(data);
-    return yearlyData.map(
-      ({ year, ADU, NON_ADU, POTENTIAL_ADU_CONVERSION }) => {
-        const total = ADU + NON_ADU + POTENTIAL_ADU_CONVERSION;
-        return {
-          year,
-          aduCount: ADU,
-          totalCount: total,
-          aduPercentage: total > 0 ? Math.round((ADU / total) * 100) : 0,
-        };
-      }
+    return Object.values(unitsByYear).sort(
+      (a, b) => parseInt(a.year) - parseInt(b.year),
     );
   };
 
+  // 2) ADU percentage of total units by year
+  const processAduPercentageByYear = (
+    data: HousingData[],
+  ): AduPercentageByYearData[] => {
+    const yearlyData = processUnitsByYear(data);
+    return yearlyData.map(({ year, ADU, NON_ADU, POTENTIAL_ADU_CONVERSION }) => {
+      const total = ADU + NON_ADU + POTENTIAL_ADU_CONVERSION;
+      const aduPercentage = total > 0 ? (ADU / total) * 100 : 0;
+      return {
+        year,
+        aduPercentage: Math.round(aduPercentage),
+        aduCount: ADU,
+        totalCount: total,
+      };
+    });
+  };
+
+  // 3) Distribution of ADU permits by county
   const processUnitsByJurisdiction = (
-    data: HousingData[]
+    data: HousingData[],
   ): UnitsByJurisdictionData[] => {
     const jurisdictionData = data.reduce((acc, row) => {
-      if (!acc[row.COUNTY]) acc[row.COUNTY] = { ADU: 0, total: 0 };
-      acc[row.COUNTY].ADU += row.Classification === "ADU" ? 1 : 0;
+      if (!acc[row.COUNTY]) {
+        acc[row.COUNTY] = { ADU: 0, total: 0 };
+      }
+      if (row.Classification === "ADU") {
+        acc[row.COUNTY].ADU++;
+      }
       acc[row.COUNTY].total++;
       return acc;
     }, {} as Record<string, { ADU: number; total: number }>);
@@ -254,11 +271,97 @@ const HousingDashboard = () => {
     return Object.entries(jurisdictionData)
       .map(([county, { ADU, total }]) => ({ county, ADU, total }))
       .sort((a, b) => b.ADU - a.ADU)
-      .slice(0, 8); // Limiting to top 8 instead of 10
+      .slice(0, 8);
   };
 
+  // 4) Percentage of ADU job value by year => (sum of ADU job value / sum of ALL job value) * 100
+  const processAduJobValuePercentageByYear = (
+    data: HousingData[],
+  ): AduJobValuePercentageByYearData[] => {
+    const groupedByYear = data.reduce((acc, row) => {
+      const year = row.YEAR.toString();
+      if (!acc[year]) {
+        acc[year] = { aduValue: 0, totalValue: 0 };
+      }
+      acc[year].totalValue += row.JOB_VALUE;
+      if (row.Classification === "ADU") {
+        acc[year].aduValue += row.JOB_VALUE;
+      }
+      return acc;
+    }, {} as Record<string, { aduValue: number; totalValue: number }>);
+
+    const results: AduJobValuePercentageByYearData[] = Object.entries(
+      groupedByYear,
+    )
+      .map(([year, val]) => {
+        const ratio =
+          val.totalValue > 0 ? (val.aduValue / val.totalValue) * 100 : 0;
+        return {
+          year,
+          aduJobValuePercentage: Math.round(ratio),
+          aduValue: val.aduValue,
+          totalValue: val.totalValue,
+        };
+      })
+      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
+
+    return results;
+  };
+
+  // 5) Average job value by each structure type and year (for wave-like chart on Job Value Analysis)
+  const processAverageJobValueByStructureTypeAndYear = (
+    data: HousingData[],
+  ): AvgJobValueByStructureTypeAndYearData[] => {
+    const grouped = data.reduce((acc, row) => {
+      const year = row.YEAR.toString();
+      if (!acc[year]) {
+        acc[year] = {
+          ADU: { sum: 0, count: 0 },
+          NON_ADU: { sum: 0, count: 0 },
+          POTENTIAL_ADU_CONVERSION: { sum: 0, count: 0 },
+        };
+      }
+      acc[year][row.Classification].sum += row.JOB_VALUE;
+      acc[year][row.Classification].count++;
+      return acc;
+    }, {} as Record<
+      string,
+      {
+        ADU: ValueAggregate;
+        NON_ADU: ValueAggregate;
+        POTENTIAL_ADU_CONVERSION: ValueAggregate;
+      }
+    >);
+
+    return Object.entries(grouped)
+      .map(([year, sums]) => {
+        const aduAvg =
+          sums.ADU.count > 0 ? Math.round(sums.ADU.sum / sums.ADU.count) : 0;
+        const nonAduAvg =
+          sums.NON_ADU.count > 0
+            ? Math.round(sums.NON_ADU.sum / sums.NON_ADU.count)
+            : 0;
+        const potAduAvg =
+          sums.POTENTIAL_ADU_CONVERSION.count > 0
+            ? Math.round(
+                sums.POTENTIAL_ADU_CONVERSION.sum /
+                  sums.POTENTIAL_ADU_CONVERSION.count,
+              )
+            : 0;
+
+        return {
+          year,
+          ADU: aduAvg,
+          NON_ADU: nonAduAvg,
+          POTENTIAL_ADU_CONVERSION: potAduAvg,
+        };
+      })
+      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
+  };
+
+  // 6) Average ADU job value by county (for bar chart on Job Value Analysis tab)
   const processJobValueByCounty = (
-    data: HousingData[]
+    data: HousingData[],
   ): JobValueByCountyData[] => {
     const countyData = data.reduce((acc, row) => {
       if (row.Classification === "ADU" && row.JOB_VALUE) {
@@ -272,15 +375,16 @@ const HousingDashboard = () => {
     return Object.entries(countyData)
       .map(([county, { sum, count }]) => ({
         county,
-        avgValue: Math.round(sum / count / 1000),
+        avgValue: Math.round(sum / count / 1000), // in thousands, if desired
         count,
       }))
       .sort((a, b) => b.avgValue - a.avgValue)
-      .slice(0, 8); // Limiting to top 8 instead of 10
+      .slice(0, 8);
   };
 
+  // 7) (If you still need it) Average ADU job value by year
   const processAverageAduJobValueByYear = (
-    data: HousingData[]
+    data: HousingData[],
   ): AverageAduJobValueByYearData[] => {
     const yearlyData = data.reduce((acc, row) => {
       if (row.Classification === "ADU" && row.JOB_VALUE) {
@@ -295,12 +399,39 @@ const HousingDashboard = () => {
     return Object.entries(yearlyData)
       .map(([year, { sum, count }]) => ({
         year,
-        avgAduValue: Math.round(sum / count / 1000),
+        avgAduValue: Math.round(sum / count / 1000), // in thousands
         count,
       }))
       .sort((a, b) => parseInt(a.year) - parseInt(b.year));
   };
 
+  /* --------------------------
+   * PROCESS & SET CHART DATA
+   * -------------------------- */
+  const processData = (data: HousingData[]) => {
+    const _unitsByYear = processUnitsByYear(data);
+    const _aduPercentageByYear = processAduPercentageByYear(data);
+    const _unitsByJurisdiction = processUnitsByJurisdiction(data);
+    const _aduJobValuePercentageByYear = processAduJobValuePercentageByYear(data);
+    const _avgJobValueByStructureTypeAndYear =
+      processAverageJobValueByStructureTypeAndYear(data);
+    const _jobValueByCounty = processJobValueByCounty(data);
+    const _averageAduJobValueByYear = processAverageAduJobValueByYear(data);
+
+    setChartData({
+      unitsByYear: _unitsByYear,
+      aduPercentageByYear: _aduPercentageByYear,
+      unitsByJurisdiction: _unitsByJurisdiction,
+      aduJobValuePercentageByYear: _aduJobValuePercentageByYear,
+      avgJobValueByStructureTypeAndYear: _avgJobValueByStructureTypeAndYear,
+      jobValueByCounty: _jobValueByCounty,
+      averageAduJobValueByYear: _averageAduJobValueByYear,
+    });
+  };
+
+  /* --------------------------
+   * TOOLTIP & MISC
+   * -------------------------- */
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
 
@@ -331,7 +462,7 @@ const HousingDashboard = () => {
       description: "Your data is being prepared for download",
     });
 
-    // In a real app, this would trigger an actual download
+    // In a real application, you'd trigger a real CSV export here
     setTimeout(() => {
       toast({
         title: "Download Complete",
@@ -341,17 +472,13 @@ const HousingDashboard = () => {
   };
 
   const getOverviewData = () => {
+    // For the big card stats: trend & latest for aduPercentage
     if (!chartData.aduPercentageByYear.length) return { trend: 0, latest: 0 };
 
-    const latestYear =
-      chartData.aduPercentageByYear[chartData.aduPercentageByYear.length - 1];
+    const arr = chartData.aduPercentageByYear;
+    const latestYear = arr[arr.length - 1];
     const previousYear =
-      chartData.aduPercentageByYear.length > 1
-        ? chartData.aduPercentageByYear[
-            chartData.aduPercentageByYear.length - 2
-          ]
-        : { aduPercentage: 0 };
-
+      arr.length > 1 ? arr[arr.length - 2] : { aduPercentage: 0 };
     const trend = latestYear.aduPercentage - previousYear.aduPercentage;
 
     return {
@@ -361,20 +488,14 @@ const HousingDashboard = () => {
   };
 
   const getAverageValueData = () => {
+    // For the big card stats: trend & latest for average ADU value
     if (!chartData.averageAduJobValueByYear.length)
       return { trend: 0, latest: 0 };
 
-    const latestYear =
-      chartData.averageAduJobValueByYear[
-        chartData.averageAduJobValueByYear.length - 1
-      ];
+    const arr = chartData.averageAduJobValueByYear;
+    const latestYear = arr[arr.length - 1];
     const previousYear =
-      chartData.averageAduJobValueByYear.length > 1
-        ? chartData.averageAduJobValueByYear[
-            chartData.averageAduJobValueByYear.length - 2
-          ]
-        : { avgAduValue: 0 };
-
+      arr.length > 1 ? arr[arr.length - 2] : { avgAduValue: 0 };
     const trend = latestYear.avgAduValue - previousYear.avgAduValue;
 
     return {
@@ -388,6 +509,9 @@ const HousingDashboard = () => {
     return chartData.unitsByJurisdiction[0].county;
   };
 
+  /* --------------------------
+   * RENDERING
+   * -------------------------- */
   const renderSkeleton = () => (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -471,6 +595,7 @@ const HousingDashboard = () => {
         </Alert>
       )}
 
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -497,6 +622,7 @@ const HousingDashboard = () => {
         </div>
       </div>
 
+      {/* TOP CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-100 hover:shadow-md transition-all duration-200">
           <CardHeader className="pb-2">
@@ -517,15 +643,15 @@ const HousingDashboard = () => {
                       variant="outline"
                       className="bg-green-50 text-green-700 border-green-200"
                     >
-                      <TrendingUp className="h-3 w-3 mr-1" /> +
-                      {overviewData.trend}%
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      +{overviewData.trend}%
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
                       className="bg-red-50 text-red-700 border-red-200"
                     >
-                      <TrendingUp className="h-3 w-3 mr-1 rotate-180" />{" "}
+                      <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
                       {overviewData.trend}%
                     </Badge>
                   )}
@@ -557,16 +683,16 @@ const HousingDashboard = () => {
                       variant="outline"
                       className="bg-green-50 text-green-700 border-green-200"
                     >
-                      <TrendingUp className="h-3 w-3 mr-1" /> +$
-                      {valueData.trend}k
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      +${valueData.trend}k
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
                       className="bg-red-50 text-red-700 border-red-200"
                     >
-                      <TrendingUp className="h-3 w-3 mr-1 rotate-180" /> $
-                      {valueData.trend}k
+                      <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
+                      ${valueData.trend}k
                     </Badge>
                   )}
                   <span className="text-gray-500 text-xs ml-2">
@@ -596,7 +722,8 @@ const HousingDashboard = () => {
                     variant="outline"
                     className="bg-blue-50 text-blue-700 border-blue-200"
                   >
-                    <Map className="h-3 w-3 mr-1" /> Highest ADU Concentration
+                    <Map className="h-3 w-3 mr-1" />
+                    Highest ADU Concentration
                   </Badge>
                 </div>
               </div>
@@ -605,6 +732,7 @@ const HousingDashboard = () => {
         </Card>
       </div>
 
+      {/* TABS */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid grid-cols-3 w-full sm:w-[500px] mb-6">
           <TabsTrigger value="overview" className="flex gap-2">
@@ -618,16 +746,18 @@ const HousingDashboard = () => {
           </TabsTrigger>
         </TabsList>
 
+        {/* OVERVIEW TAB */}
         <TabsContent value="overview">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: ADU Units Percentage by Year */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <PieChartIcon className="h-5 w-5 text-blue-500" />
-                  ADU Units Percentage Trend by year
+                  ADU Units Percentage Trend by Year
                 </CardTitle>
                 <CardDescription>
-                  Percentage of ADUs relative to total housing permits over time
+                  (ADU Units / Total Units) * 100 over time
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -663,7 +793,6 @@ const HousingDashboard = () => {
                       tick={{ fill: THEME_COLORS.text }}
                     />
                     <YAxis
-                      domain={[0, 10]}
                       stroke={THEME_COLORS.text}
                       tick={{ fill: THEME_COLORS.text }}
                       tickFormatter={(value) => `${value}%`}
@@ -671,7 +800,7 @@ const HousingDashboard = () => {
                     <Tooltip content={<CustomTooltip />} />
                     <Area
                       dataKey="aduPercentage"
-                      name="ADU Percentage"
+                      name="ADU %"
                       stroke={THEME_COLORS.adu}
                       fill="url(#aduPercentageGradient)"
                       activeDot={{
@@ -680,38 +809,95 @@ const HousingDashboard = () => {
                         strokeWidth: 2,
                       }}
                     />
-                    <ReferenceLine
-                      y={25}
-                      stroke={THEME_COLORS.secondary}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: "50% Target",
-                        position: "insideBottomRight",
-                        fill: THEME_COLORS.secondary,
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Right: ADU Job Value Percentage by Year */}
+            <Card className="hover:shadow-md transition-all duration-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Waves className="h-5 w-5 text-blue-500" />
+                  ADU Job Value Percentage Trend by Year
+                </CardTitle>
+                <CardDescription>
+                  (Sum of ADU Job Value / Sum of ALL Job Value) * 100 over time
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chartData.aduJobValuePercentageByYear}>
+                    <defs>
+                      <linearGradient
+                        id="aduJobValueGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={THEME_COLORS.adu}
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={THEME_COLORS.adu}
+                          stopOpacity={0.1}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke={THEME_COLORS.border}
+                    />
+                    <XAxis
+                      dataKey="year"
+                      stroke={THEME_COLORS.text}
+                      tick={{ fill: THEME_COLORS.text }}
+                    />
+                    <YAxis
+                      stroke={THEME_COLORS.text}
+                      tick={{ fill: THEME_COLORS.text }}
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area
+                      dataKey="aduJobValuePercentage"
+                      name="ADU Value %"
+                      stroke={THEME_COLORS.adu}
+                      fill="url(#aduJobValueGradient)"
+                      activeDot={{
+                        r: 5,
+                        stroke: THEME_COLORS.background,
+                        strokeWidth: 2,
                       }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
 
+        {/* UNITS ANALYSIS TAB */}
+        <TabsContent value="units">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Wave-like chart of total units by structure type */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Waves className="h-5 w-5 text-blue-500" />
-                  ADU job value trend by year
+                  Units Permitted by Structure Type
                 </CardTitle>
                 <CardDescription>
-                  Wave visualization of housing permits by classification over
-                  time
+                  Wave visualization of ADU / NON-ADU / POTENTIAL over time
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart
-                    data={chartData.unitsByYear}
-                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                  >
+                  <AreaChart data={chartData.unitsByYear}>
                     <defs>
                       <linearGradient
                         id="aduGradient"
@@ -768,142 +954,49 @@ const HousingDashboard = () => {
                         />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={THEME_COLORS.border}
-                    />
-                    <XAxis
-                      dataKey="year"
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
-                    />
-                    <YAxis
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
-                      domain={[0, 3000]}
-                      ticks={[0, 100, 200, 500, 1000, 1500, 2000, 3000, 4000]}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" />
+                    <YAxis />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
                     <Area
+                      type="monotone"
                       dataKey="POTENTIAL_ADU_CONVERSION"
                       name="Potential ADU Conversion"
-                      type="monotone"
                       stackId="1"
                       stroke={THEME_COLORS.potentialAdu}
-                      fillOpacity={1}
                       fill="url(#potentialAduGradient)"
                     />
                     <Area
+                      type="monotone"
                       dataKey="NON_ADU"
                       name="Non-ADU"
-                      type="monotone"
                       stackId="1"
                       stroke={THEME_COLORS.nonAdu}
-                      fillOpacity={1}
                       fill="url(#nonAduGradient)"
                     />
                     <Area
+                      type="monotone"
                       dataKey="ADU"
                       name="ADU"
-                      type="monotone"
                       stackId="1"
                       stroke={THEME_COLORS.adu}
-                      fillOpacity={1}
                       fill="url(#aduGradient)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
 
-        <TabsContent value="units">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="hover:shadow-md transition-all duration-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Percent className="h-5 w-5 text-blue-500" />
-                  Unit Permitted by structure type
-                </CardTitle>
-                <CardDescription>
-                  Percentage of ADUs compared to total housing permits
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData.aduPercentageByYear}>
-                    <defs>
-                      <linearGradient
-                        id="aduPercentageGradient2"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={THEME_COLORS.adu}
-                          stopOpacity={0.8}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={THEME_COLORS.adu}
-                          stopOpacity={0.1}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={THEME_COLORS.border}
-                    />
-                    <XAxis
-                      dataKey="year"
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
-                    />
-                    <YAxis
-                      domain={[0, 10]}
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
-                      tickFormatter={(value) => `${value}%`}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area
-                      dataKey="aduPercentage"
-                      name="ADU Percentage"
-                      stroke={THEME_COLORS.adu}
-                      fill="url(#aduPercentageGradient2)"
-                      activeDot={{
-                        r: 5,
-                        stroke: THEME_COLORS.background,
-                        strokeWidth: 2,
-                      }}
-                    />
-                    <ReferenceLine
-                      y={50}
-                      stroke={THEME_COLORS.secondary}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: "50% Target",
-                        position: "insideBottomRight",
-                        fill: THEME_COLORS.secondary,
-                      }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
+            {/* Right: ADU permits by county */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Map className="h-5 w-5 text-blue-500" />
-                  Unit by Jurisdiction
+                  Distribution of ADU Permits by County
                 </CardTitle>
                 <CardDescription>
-                  Distribution of ADU permits across counties
+                  Top 8 counties with highest ADU permits
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -914,23 +1007,11 @@ const HousingDashboard = () => {
                     barSize={15}
                     margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
                   >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={THEME_COLORS.border}
-                    />
-                    <XAxis
-                      type="number"
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="county"
-                      width={100}
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="county" width={100} />
                     <Tooltip content={<CustomTooltip />} />
+                    <Legend />
                     <Bar
                       dataKey="ADU"
                       name="ADU Permits"
@@ -944,25 +1025,26 @@ const HousingDashboard = () => {
           </div>
         </TabsContent>
 
+        {/* VALUE (JOB VALUE) ANALYSIS TAB */}
         <TabsContent value="values">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Average job value by structure type (wave-like) */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Waves className="h-5 w-5 text-blue-500" />
-                  Average job value by structure type
+                  Average Job Value by Structure Type
                 </CardTitle>
                 <CardDescription>
-                  Annual average construction value for ADU projects (in
-                  thousands)
+                  Wave-like chart of ADU / NON-ADU / POTENTIAL average value
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData.averageAduJobValueByYear}>
+                  <AreaChart data={chartData.avgJobValueByStructureTypeAndYear}>
                     <defs>
                       <linearGradient
-                        id="valueGradient"
+                        id="aduValueGradient"
                         x1="0"
                         y1="0"
                         x2="0"
@@ -979,48 +1061,88 @@ const HousingDashboard = () => {
                           stopOpacity={0.1}
                         />
                       </linearGradient>
+                      <linearGradient
+                        id="nonAduValueGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={THEME_COLORS.nonAdu}
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={THEME_COLORS.nonAdu}
+                          stopOpacity={0.1}
+                        />
+                      </linearGradient>
+                      <linearGradient
+                        id="potAduValueGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={THEME_COLORS.potentialAdu}
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={THEME_COLORS.potentialAdu}
+                          stopOpacity={0.1}
+                        />
+                      </linearGradient>
                     </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={THEME_COLORS.border}
-                    />
-                    <XAxis
-                      dataKey="year"
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" />
                     <YAxis
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
-                      tickFormatter={(value) => `$${value}k`}
+                      tickFormatter={(value) => `$${value}`}
+                      width={60}
                     />
                     <Tooltip content={<CustomTooltip />} />
+                    <Legend />
                     <Area
                       type="monotone"
-                      dataKey="avgAduValue"
-                      name="Average Value (K)"
+                      dataKey="POTENTIAL_ADU_CONVERSION"
+                      name="Potential ADU Conv. Avg"
+                      stackId="1"
+                      stroke={THEME_COLORS.potentialAdu}
+                      fill="url(#potAduValueGradient)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="NON_ADU"
+                      name="Non-ADU Avg"
+                      stackId="1"
+                      stroke={THEME_COLORS.nonAdu}
+                      fill="url(#nonAduValueGradient)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="ADU"
+                      name="ADU Avg"
+                      stackId="1"
                       stroke={THEME_COLORS.adu}
-                      fill="url(#valueGradient)"
-                      activeDot={{
-                        r: 5,
-                        stroke: THEME_COLORS.background,
-                        strokeWidth: 2,
-                      }}
+                      fill="url(#aduValueGradient)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
+            {/* Right: Average ADU Job Value by County */}
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building className="h-5 w-5 text-blue-500" />
-                  ADU Job Value by County
+                  Average ADU Job Value by County
                 </CardTitle>
-                <CardDescription>
-                  Average construction value by county (in thousands)
-                </CardDescription>
+                <CardDescription>Top 8 counties (in thousands)</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -1030,48 +1152,22 @@ const HousingDashboard = () => {
                     layout="vertical"
                     margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
                   >
-                    <defs>
-                      <linearGradient
-                        id="countyValueGradient"
-                        x1="0"
-                        y1="0"
-                        x2="1"
-                        y2="0"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={THEME_COLORS.adu}
-                          stopOpacity={0.8}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#8884d8"
-                          stopOpacity={0.8}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={THEME_COLORS.border}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                       type="number"
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
                       tickFormatter={(value) => `$${value}k`}
                     />
                     <YAxis
                       type="category"
                       dataKey="county"
                       width={100}
-                      stroke={THEME_COLORS.text}
-                      tick={{ fill: THEME_COLORS.text }}
                     />
                     <Tooltip content={<CustomTooltip />} />
+                    <Legend />
                     <Bar
                       dataKey="avgValue"
-                      name="Average Value (K)"
-                      fill="url(#countyValueGradient)"
+                      name="Avg ADU Value (k)"
+                      fill={THEME_COLORS.adu}
                       radius={[0, 4, 4, 0]}
                     />
                   </BarChart>
@@ -1082,6 +1178,7 @@ const HousingDashboard = () => {
         </TabsContent>
       </Tabs>
 
+      {/* FOOTER */}
       <div className="mt-8 text-center text-sm text-muted-foreground border-t pt-4">
         <p>Data last updated: {new Date().toLocaleDateString()}</p>
         <p className="mt-1">

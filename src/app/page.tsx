@@ -624,7 +624,7 @@ const HousingDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <PieChartIcon className="h-5 w-5 text-blue-500" />
-                  ADU Percentage Trend
+                  ADU Units Percentage Trend by year
                 </CardTitle>
                 <CardDescription>
                   Percentage of ADUs relative to total housing permits over time
@@ -699,7 +699,7 @@ const HousingDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Waves className="h-5 w-5 text-blue-500" />
-                  Housing Units by Type and Year
+                  ADU job value trend by year
                 </CardTitle>
                 <CardDescription>
                   Wave visualization of housing permits by classification over
@@ -825,7 +825,7 @@ const HousingDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Percent className="h-5 w-5 text-blue-500" />
-                  ADU Percentage of Total Units
+                  Unit Permitted by structure type
                 </CardTitle>
                 <CardDescription>
                   Percentage of ADUs compared to total housing permits
@@ -900,7 +900,7 @@ const HousingDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Map className="h-5 w-5 text-blue-500" />
-                  ADU Permits by Jurisdiction
+                  Unit by Jurisdiction
                 </CardTitle>
                 <CardDescription>
                   Distribution of ADU permits across counties
@@ -949,8 +949,8 @@ const HousingDashboard = () => {
             <Card className="hover:shadow-md transition-all duration-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-blue-500" />
-                  Average ADU Job Value by Year
+                  <Waves className="h-5 w-5 text-blue-500" />
+                  Average job value by structure type
                 </CardTitle>
                 <CardDescription>
                   Annual average construction value for ADU projects (in
@@ -959,10 +959,7 @@ const HousingDashboard = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={chartData.averageAduJobValueByYear}
-                    barSize={30}
-                  >
+                  <AreaChart data={chartData.averageAduJobValueByYear}>
                     <defs>
                       <linearGradient
                         id="valueGradient"
@@ -979,7 +976,7 @@ const HousingDashboard = () => {
                         <stop
                           offset="95%"
                           stopColor={THEME_COLORS.adu}
-                          stopOpacity={0.5}
+                          stopOpacity={0.1}
                         />
                       </linearGradient>
                     </defs>
@@ -998,13 +995,19 @@ const HousingDashboard = () => {
                       tickFormatter={(value) => `$${value}k`}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar
+                    <Area
+                      type="monotone"
                       dataKey="avgAduValue"
                       name="Average Value (K)"
+                      stroke={THEME_COLORS.adu}
                       fill="url(#valueGradient)"
-                      radius={[4, 4, 0, 0]}
+                      activeDot={{
+                        r: 5,
+                        stroke: THEME_COLORS.background,
+                        strokeWidth: 2,
+                      }}
                     />
-                  </BarChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
